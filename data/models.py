@@ -11,6 +11,7 @@ class UserLocation(models.Model):
     user = models.ForeignKey(User)
     latitude = models.FloatField(null=True)
     longitude = models.FloatField(null=True)
+    timestamp = models.IntegerField(null=True)
 
 class Group(models.Model):
     gid = models.AutoField(primary_key=True)
@@ -24,7 +25,12 @@ class GroupMember(models.Model):
     name = models.CharField(max_length=100)
     visible = models.BooleanField()
 
-class Global(models.Model):
-    groups = models.IntegerField() 
-    users = models.IntegerField()
-    
+class UserMarker(models.Model):
+    mid = models.AutoField(primary_key=True)
+    user = models.ForeignKey(User)
+    group = models.ForeignKey(Group)
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    timestamp = models.IntegerField()
+    style = models.IntegerField()
+    text = models.CharField(max_length=200)   

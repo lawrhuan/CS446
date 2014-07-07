@@ -1,6 +1,6 @@
 from django.shortcuts import render
 #from django.contrib.auth.models import User, Group
-from data.models import User, Group, GroupMember, Global, UserLocation
+from data.models import User, Group, GroupMember, UserLocation, UserMarker
 from rest_framework import viewsets
 from quickstart.serializers import UserSerializer, GroupSerializer
 from django.http import HttpResponse
@@ -11,6 +11,7 @@ import json
 import uuid
 import hashlib
 import logging
+import time
 
 # calls different request handler functions based on 'data.rq' URL parameter
 #@method_decorator(csrf_exempt)
@@ -51,6 +52,12 @@ def process_request(request):
 	    rs = send_position(data)
 	elif data['TYPE'] == 'RequestPositions':
 	    rs = request_positions(data)
+	elif data['TYPE'] == 'AddMarker':
+	    rs = add_marker(data)
+	elif data['TYPE'] == 'RemoveMarker':
+	    rs = remove_marker(data)
+	elif data['TYPE'] == 'RequestMarkers':
+	    rs = request_markers(data)
 	else:
 	    rs = {'error':'invalid type'}
     else:
@@ -157,7 +164,7 @@ def join_group(params):
 
 def leave_group(params):
     if not ('UID' in params and 'GID' in params and 'UserAuth' in params):
-        return {'error':'missing params'}
+    	return {'error':'missing params'}
     
     user = authenticate_user(params['UID'], params['UserAuth'])
     if not user:
@@ -189,12 +196,12 @@ def request_positions(params):
     group_members = GroupMember.objects.filter(group = group, visible=1)
     group_positions = []
 
+    current_time = int(time.time())
     for group_member in group_members:
 	position={}
 	group_user = group_member.user
 	location = UserLocation.objects.get(user = group_user)
-	if group_user == user or location.longitude == None or location.latitude==None:    
-	#if location.longitude == None or location.latitude==None:
+	if group_user == user or location.longitude == None or location.latitude==None or location.timestamp < params['Timestamp'] :
 	    continue
 	position['UserDisplayName'] = group_member.name
 	position['Longitude'] = location.longitude
@@ -202,7 +209,7 @@ def request_positions(params):
 	position['UID'] = group_user.uid
 	group_positions.append(position)
 
-    return {'Users':group_positions}
+    return {'Users':group_positions, 'Timestamp':current_time}
 
 def send_position(params):
     if not ('UID' in params and 'UserAuth' in params and 'Latitude' in params and 'Longitude' in params and 'GIDs' in params):
@@ -218,10 +225,73 @@ def send_position(params):
 	else:
 	    group_member.visible = False
 	group_member.save()
-    user_location = UserLocation.objects.filter(user=user).update(longitude=params['Longitude'], latitude = params['Latitude'])
+    user_location = UserLocation.objects.filter(user=user).update(timestamp=int(time.time()),longitude=params['Longitude'], latitude = params['Latitude'])
     return {'valid':1}
 
-  
+def add_marker(params):
+    if not ('UID' in params and 'UserAuth' in params and 'GID' in params and 'Password' in params and 'Latitude' in params and 'Longitude' in params and 'Text' in params and 'Style' in params): 
+	return {'error':'missing params'}
+
+    user = authenticate_user(params['UID'], params['UserAuth'])
+    if not user:
+        return {'error':'unable to authenticate user'}
+    group = authenticate_group(params['GID'], params['Password'])
+    if not group:
+        return {'error':'unable to authenticate group'}
+
+    if not GroupMember.objects.filter(group = group, user = user):
+        return {'error': 'user not in group'}
+    user_marker = UserMarker.objects.create(group = group, user=user, latitude=params['Latitude'], longitude=params['Longitude'], text = params['Text'], style=params['Style'], timestamp=int(time.time()))
+    return {'MID':user_marker.mid}
+
+def remove_marker(params):
+    if not ('UID' in params and 'UserAuth' in params and 'GID' in params and 'Password' in params and 'MID' in params):
+	return {'error':'missing params'}
+
+    user = authenticate_user(params['UID'], params['UserAuth'])
+    if not user:
+        return {'error':'unable to authenticate user'}
+    group = authenticate_group(params['GID'], params['Password'])
+    if not group:
+        return {'error':'unable to authenticate group'}
+
+    if not GroupMember.objects.filter(group = group, user = user):
+        return {'error': 'user not in group'}
+
+#    if not UserMarker.objects.get(mid=params['mid']).user == user:
+#	return {'error':'user did not create this marker'}	
+
+    UserMarker.objects.filter(mid=params['MID']).delete()
+    return {'valid':1}
+
+def request_markers(params):
+    if not ('UID' in params and 'UserAuth' in params and 'GID' in params and 'Password' in params and 'Timestamp' in params):
+        return {'error':'missing params'}
+    
+    user = authenticate_user(params['UID'], params['UserAuth'])
+    if not user:
+        return {'error':'unable to authenticate user'}
+    group = authenticate_group(params['GID'], params['Password'])
+    if not group:
+        return {'error':'unable to authenticate group'}
+    current_time = int(time.time())
+
+    group_markers = UserMarker.objects.filter(group = group)
+    response = {'Timestamp':current_time, 'UID':[], 'Latitude':[],'Longitude':[],'Text':[], 'Style':[], 'MID':[],'OldMID':[]}
+    for marker in group_markers:
+	if marker.timestamp < params['Timestamp']:
+	    response['OldMID'].append(marker.mid)
+	    continue
+	response['MID'].append(marker.mid)
+    	response['UID'].append(marker.user.uid)
+	response['Latitude'].append(marker.latitude)
+	response['Longitude'].append(marker.longitude)
+	response['Text'].append(marker.text)
+	response['Style'].append(marker.style)
+
+    return response
+    
+
 def showlog(request):
     with open ("/var/www/ec2-54-200-196-237.us-west-2.compute.amazonaws.com/quickstart/req.log", "r") as myfile:
         data=myfile.read().replace('\n', '<br/>')
