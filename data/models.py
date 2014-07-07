@@ -46,6 +46,7 @@ class Drawing(models.Model):
     user = models.ForeignKey(User)
     group = models.ForeignKey(Group)
     timestamp = models.IntegerField()
+    removed = models.BooleanField()
 
 class DrawingPoint(models.Model):
     drawing = models.ForeignKey(Drawing)

@@ -5,11 +5,13 @@ from quickstart.serializers import UserSerializer, GroupSerializer
 from django.http import HttpResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
+
 from quickstart.authentication import authenticate_user, authenticate_group, generate_hash
 from quickstart.api_grouping import create_user, create_group, join_group, leave_group, join_group_salt, list_groups, request_members
 from quickstart.api_position import request_positions, send_position
 from quickstart.api_marking import request_markers, remove_marker, add_marker
 from quickstart.api_messaging import send_text, request_text
+from quickstart.api_drawing import send_drawing, request_drawings, remove_drawing
 
 import datetime
 import json
@@ -67,7 +69,13 @@ def process_request(request):
 	elif data['TYPE'] == 'SendText':
             rs = send_text(data)
    	elif data['TYPE'] == 'RequestText':
-            rs = request_text(data)
+            rs = request_test(data)
+	elif data['TYPE'] == 'SendDrawing':
+            rs = send_drawing(data)
+	elif data['TYPE'] == 'RequestDrawings':
+            rs = request_drawings(data)
+	elif data['TYPE'] == 'RemoveDrawing':
+            rs = remove_drawing(data)
 	else:
 	    rs = {'error':'invalid type'}
     else:
