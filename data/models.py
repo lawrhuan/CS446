@@ -34,3 +34,22 @@ class UserMarker(models.Model):
     timestamp = models.IntegerField()
     style = models.IntegerField()
     text = models.CharField(max_length=200)   
+
+class Message(models.Model):
+    user = models.ForeignKey(User)
+    group = models.ForeignKey(Group)
+    text = models.CharField(max_length=500)
+    timestamp = models.IntegerField()
+
+class Drawing(models.Model):
+    did = models.AutoField(primary_key=True)
+    user = models.ForeignKey(User)
+    group = models.ForeignKey(Group)
+    timestamp = models.IntegerField()
+
+class DrawingPoint(models.Model):
+    drawing = models.ForeignKey(Drawing)
+    order = models.IntegerField()
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+
