@@ -69,7 +69,7 @@ def process_request(request):
 	elif data['TYPE'] == 'SendText':
             rs = send_text(data)
    	elif data['TYPE'] == 'RequestText':
-            rs = request_test(data)
+            rs = request_text(data)
 	elif data['TYPE'] == 'SendDrawing':
             rs = send_drawing(data)
 	elif data['TYPE'] == 'RequestDrawings':

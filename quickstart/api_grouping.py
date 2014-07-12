@@ -31,7 +31,11 @@ def create_group(params):
 
 def list_groups(params):
     group_list = []
-    groups = Group.objects.all()
+    groups = []
+    if 'Query' in params:
+	groups = Group.objects.filter(name__icontains=params['Query'])
+    else:
+        groups = Group.objects.all()
     for group in groups:
 	group_dict = {}
 	group_dict['GID']=group.gid
